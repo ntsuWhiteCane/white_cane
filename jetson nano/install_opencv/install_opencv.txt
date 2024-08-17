@@ -1,0 +1,62 @@
+# go to OpenCV website and download the version that you want
+# The upcoming tutorial will be conducted using version 3.4.1.
+
+sudo apt-get install -y libcurl4 build-essential pkg-config cmake \
+    libopenblas-dev libeigen3-dev libtbb-dev \
+    libavcodec-dev libavformat-dev \
+    libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev \
+    libswscale-dev libgtk-3-dev libpng-dev libjpeg-dev \
+    libcanberra-gtk-module libcanberra-gtk3-module
+
+sudo apt-get install cmake
+sudo apt-get install build-essential libgtk2.0-dev libavcodec-dev libavformat-dev libjpeg-dev libtiff5-dev libswscale-dev libjasper-dev
+
+#You are very likely to encounter this error.
+"E:Unable to locate package libjasper-dev"
+
+#then follow these instrution might helpful 
+cd /etc/apt/sources.list.d
+sudo vim multistrap-main.list
+#For those who don't know how to use Vim: press 'i' to enter **insert mode**, press 'Esc' to return to **normal mode**. In normal mode, type ':wq!' to save and exit.
+#(P.S. Vim is so powerful. Go learn the Vim :) )
+
+"Add there these two lines:"
+deb http://ports.ubuntu.com/ubuntu-ports xenial-security main
+deb http://ports.ubuntu.com/ubuntu-ports impish main
+
+#save and exit
+sudo apt update
+There may be some errors here, but that's okay (probably)
+
+sudo apt-get install libjasper-dev
+sudo rm multistrap-main.list
+cd
+
+# Go to file download location(default is ~/Downloads)
+mv opencv-3.4.1.zip ~
+mkdir opencv
+mv opencv-3.4.1 opencv
+cd opencv/opencv-3.4.1
+mkdir -p build
+cd build
+cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_VERBOSE_MAKEFILE=ON -D CMAKE_INSTALL_PREFIX=/usr/local ..
+sudo make -j4
+sudo make install
+sudo ldconfig -v
+sudo gedit /etc/ld.so.conf.d/opencv.conf
+#Add this lines
+/usr/local/lib
+
+sudo ldconfig
+sudo gedit /etc/bash.bashrc
+#Add these to the end of the document.
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
+export PKG_CONFIG_PATH
+
+source /etc/bash.bashrc
+sudo updatedb
+#if updatedb command not found then
+	sudo apt-get install mlocate
+	sudo updatedb
+#if still not found then give up (probably do not impact)
+pkg-config opencv --modversion

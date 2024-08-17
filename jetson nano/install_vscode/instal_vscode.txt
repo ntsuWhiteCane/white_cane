@@ -1,0 +1,26 @@
+#Install VSCode through the URL.
+#Because Jetson Nano is not compatible with the latest version of VSCode, it requires installing an older version of VSCode through the URL.(arm64)
+
+#install tar.gz by url
+go to website "https://update.code.visualstudio.com/1.85.2/linux-arm64/stable"
+
+# Go to file download location(default is ~/Downloads)
+tar -xzvf code-stable-arm64-1705560634.tar.gz
+sudo mv VSCode-linux-arm64 /usr/local/
+sudo chmod +x /usr/local/VSCode-linux-arm64/code
+sudo cp /usr/local/VSCode-linux-arm64/resources/app/resources/Linux/code.png /usr/share/icons/
+sudo vim /usr/share/applications/VSCode.desktop
+
+#For those who don't know how to use Vim: press 'i' to enter **insert mode**, press 'Esc' to return to **normal mode**. In normal mode, type ':wq!' to save and exit.
+#(P.S. Vim is so powerful. Go learn the Vim :) )
+
+#enter these comment
+[Desktop Entry]
+Name=Visual Studio Code
+Comment=Multi-platform code editor for Linux
+Exec=/usr/local/VSCode-linux-arm64/code
+Icon=/usr/share/icons/code.png
+Type=Application
+StartupNotify=true
+Categories=TextEditor;Development;Utility;
+MimeType=text/plain;

@@ -15,6 +15,7 @@ MPU6050 mpu;
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
 #define LED_PIN 5
 #define PB_PIN 4
+
 bool blinkState = false;
 bool pbState = false;
 // MPU control/status vars
@@ -35,9 +36,7 @@ float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 // packet structure for InvenSense teapot demo
-uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-
-
+uint8_t teapotPacket[28] = { '$', 0x03, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
 
 // ================================================================
 // ===               INTERRUPT DETECTION ROUTINE                ===
@@ -76,9 +75,6 @@ unsigned int checksum_1;
 unsigned int checksum_2;
 int angle = 0;
 long count = 0;
-// ================================================================
-// ===                      INITIAL SETUP                       ===
-// ================================================================
 
 void setup() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -123,8 +119,8 @@ void setup() {
     mpu.setYGyroOffset(100);
     mpu.setZGyroOffset(-25);
 
-    // mpu.CalibrateGyro(15);
-    // mpu.CalibrateAccel(15);
+    mpu.CalibrateGyro(15);
+    mpu.CalibrateAccel(15);
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
@@ -161,8 +157,6 @@ void setup() {
 
 
 void loop() {
-    int release = 1;
-    
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
@@ -179,18 +173,6 @@ void loop() {
         // .
         // .
     }
-    // while(!pbState){
-      
-    //   if (!digitalRead(PB_PIN) && release == 1){
-    //     release == 0;
-    //     delay(20);
-    //   }else if (digitalRead(PB_PIN) && release == 0){
-    //     release == 1
-    //     pbState = true;
-    //     digitalWrite(LED_PIN, HIGH);
-    //     delay(20);
-    //   }
-    // }
     // reset interrupt flag and get INT_STATUS byte
     mpuInterrupt = false;
     mpuIntStatus = mpu.getIntStatus();
@@ -245,6 +227,11 @@ void loop() {
         teapotPacket[23] = temperature & 0xFF;
         Serial.write(teapotPacket, 28);
         teapotPacket[25]++; // packetCount, loops at 0xFF on purpose
+        // teapotPacket[0] = '$';
+        // teapotPacket[1] = 0x03;
+        // teapotPacket[26] = '\r';
+        // teapotPacket[27] = '\n';
+        
     }
     if(count <= 10){
       count++;  
@@ -252,6 +239,7 @@ void loop() {
     else{
       A1_16_SetPosition(ID,CMD_I_JOG, 50, compute_A1_16_angle(angle));//(ID,mode,playtime,angle)
       delay(30);
+      count = 0;
     }
 }
 
@@ -284,6 +272,7 @@ void A1_16_SetPosition(unsigned char _pID, uint16_t _CMD,  unsigned char _playti
   Serial.write(0xff);
   Serial.write(0xff);
   Serial.write(0x0c);        //package size//12 7+5 original+I JOB
+
   Serial.write(_pID);
   Serial.write(_CMD);
   Serial.write(checksum_1);

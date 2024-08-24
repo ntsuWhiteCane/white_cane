@@ -145,7 +145,7 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[28] = { '$', 0x03, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-
+uint8_t ypr_teapotPacket[18] = {'$', 0x03, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0x00, 0x00, '\r', '\n'};
 
 
 // ================================================================
@@ -196,9 +196,9 @@ void setup() {
 
     // wait for ready
     Serial.println(F("\nSend any character to begin DMP programming and demo: "));
-    while (Serial.available() && Serial.read()); // empty buffer
-    while (!Serial.available());                 // wait for data
-    while (Serial.available() && Serial.read()); // empty buffer again
+    // while (Serial.available() && Serial.read()); // empty buffer
+    // while (!Serial.available());                 // wait for data
+    // while (Serial.available() && Serial.read()); // empty buffer again
 
     // load and configure the DMP
     Serial.println(F("Initializing DMP..."));
@@ -214,8 +214,8 @@ void setup() {
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
         // Calibration Time: generate offsets and calibrate our MPU6050
-        //mpu.CalibrateAccel(15);
-        //mpu.CalibrateGyro(15);
+        mpu.CalibrateAccel(15);
+        mpu.CalibrateGyro(15);
         mpu.PrintActiveOffsets();
         // turn on the DMP, now that it's ready
         Serial.println(F("Enabling DMP..."));
@@ -290,20 +290,31 @@ void loop() {
             mpu.dmpGetQuaternion(&q, fifoBuffer);
             mpu.dmpGetGravity(&gravity, &q);
             mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-            // count++;
-            // if(count > 10){
-            //   Serial.print("yaw:");
-            //   Serial.println(cos(ypr[0]));
-            //   count = 0;
-            // }
             
-            Serial.print("ypr\t");
-            Serial.print(ypr[0] * 180/M_PI);
-            Serial.print("\t");
-            Serial.print(ypr[1] * 180/M_PI);
-            Serial.print("\t");
-            Serial.println(ypr[2] * 180/M_PI);
-            
+            // Serial.print("ypr\t");
+            // Serial.print(ypr[0] * 180/M_PI);
+            // Serial.print("\t");
+            // Serial.print(ypr[1] * 180/M_PI);
+            // Serial.print("\t");
+            // Serial.println(ypr[2] * 180/M_PI);
+
+            uint8_t bytes_tmp[4];
+            for (int i = 0; i< 3; ++i){
+              for (int j = 0; j< 4; ++j){
+                uint8_t *tmp;
+                tmp = (uint8_t*)(&ypr[i]); 
+                // bytes_tmp[j] = *(tmp + j);
+                ypr_teapotPacket[2 + i*4 + j] = *(tmp + j);
+              }
+              // float *output_bytes;
+              // output_bytes = (float *)bytes_tmp;
+              // Serial.print(output_bytes[0] * 180/M_PI);
+              // Serial.println(" ");
+            }
+            Serial.write(ypr_teapotPacket, 18);
+
+            ypr_teapotPacket[15]++;
+            // Serial.println();
         #endif
 
         #ifdef OUTPUT_READABLE_REALACCEL

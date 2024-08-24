@@ -1,0 +1,227 @@
+import copy
+import math
+
+import cv2
+import numpy as np
+
+import newton_raphson
+import read_pcd
+import select_lidar_roi
+
+resolution = 360/1051
+
+start_x, start_y, end_x, end_y = 0, 0, 0, 0
+
+lidar1_R = np.load(".\\data_list\\lidar1\\R.npy")
+lidar1_T = np.load(".\\data_list\\lidar1\\T.npy")
+
+zed1_R = np.load(".\\data_list\\zed1\\R.npy")
+zed1_T = np.load(".\\data_list\\zed1\\T.npy")
+R_1 = np.dot(zed1_R, lidar1_R)
+T_1 = np.dot(zed1_R, lidar1_T) + zed1_T 
+print(np.dot(zed1_R, lidar1_R))
+print(np.dot(zed1_R, lidar1_T) + zed1_T)
+
+lidar2_R = np.load(".\\data_list\\lidar2\\R.npy")
+lidar2_T = np.load(".\\data_list\\lidar2\\T.npy")
+
+zed2_R = np.load(".\\data_list\\zed2\\R.npy")
+zed2_T = np.load(".\\data_list\\zed2\\T.npy")
+R_2 = np.dot(zed2_R, lidar2_R)
+T_2 = np.dot(zed2_R, lidar2_T) + zed2_T 
+
+print(np.dot(zed2_R, lidar2_R))
+print(np.dot(zed2_R, lidar2_T) + zed2_T)
+
+zed_K = np.array([[3.506789914489589e+02, 0, 3.127677577917245e+02],
+				[0, 3.510410495486862e+02, 1.875433445883912e+02],
+				[0, 0, 1]])
+
+ind = 33 
+data_index = str(ind).zfill(4)
+lidar1_point_cloud_path = ".\\test_data\\PointClouds1\\" + data_index + ".pcd"
+lidar2_point_cloud_path = ".\\test_data\\PointClouds2\\" + data_index + ".pcd"
+image_path = ".\\test_data\\Images\\" + data_index + ".png"
+# lidar1_point_cloud_path = ".\\lidar1_to_cam\\PointClouds1\\" + data_index + ".pcd"
+# lidar2_point_cloud_path = ".\\lidar1_to_cam\\PointClouds1\\" + data_index + ".pcd"
+# image_path = ".\\lidar1_to_cam\\Images\\" + data_index + ".png"
+
+def select_roi(event, x, y, flags, param):
+	global start_x
+	global start_y
+	global end_x
+	global end_y
+	if event == cv2.EVENT_LBUTTONDOWN:
+		start_x, start_y = x, y
+	elif event == cv2.EVENT_LBUTTONUP:
+		end_x, end_y = x, y
+		cv2.destroyAllWindows()
+
+img = cv2.imread(image_path, -1)
+cv2.namedWindow("select image roi", 0)
+cv2.imshow("select image roi", img)
+cv2.setMouseCallback('select image roi', select_roi)
+cv2.waitKey(0)
+if start_x < 0:
+	start_x = 0
+if start_y < 0:
+	start_y = 0
+if end_x >= img.shape[1]:
+	end_x = img.shape[1]
+
+if end_y >= img.shape[0]:
+	end_y= img.shape[0]
+
+print("image shape: ", img.shape)
+
+
+img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+tmp_image = img_gray[start_y:end_y, start_x:end_x]
+ret, binary_img = cv2.threshold(tmp_image, 127, 255, cv2.THRESH_OTSU)
+img_gray[start_y:end_y, start_x:end_x] = binary_img
+img_compute = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2BGR)
+
+cv2.namedWindow("tmp img", 0)
+cv2.namedWindow("proc", 0)
+cv2.imshow("tmp img", binary_img)
+cv2.imshow("proc", img_gray)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+points = read_pcd.read_pcd(lidar1_point_cloud_path)
+points = np.stack((-1*points[:, 1], -1*points[:, 2], points[:, 0]), axis=-1)
+points = points[points[:, 2] < 3]
+points_sort_id = np.argsort(points[:, 0])
+points = points[points_sort_id]
+
+lidarRoi = select_lidar_roi.LidarRoi(points)
+lidarRoi.show_figure()
+
+tmp_mask1 = points[:, 0] >= lidarRoi.x_roi[0]
+tmp_mask1 &= points[:, 0] <= lidarRoi.x_roi[1]
+tmp_mask2 = points[:, 2] >= lidarRoi.z_roi[0]
+tmp_mask2 &= points[:, 2] <= lidarRoi.z_roi[1]
+box_mask = tmp_mask1 & tmp_mask2
+
+lidar1 = np.dot(points, R_1.T) + T_1.T
+lidar1 = np.dot(lidar1, zed_K.T)
+
+mask = lidar1[:, 2] > 0
+
+lidar1_point = copy.deepcopy(lidar1)
+for i in range(2):
+	lidar1_point[:, i] = lidar1[:, i] / lidar1[:, 2]
+# mask = lidar1_point[:, 0] <= 0
+# mask |= lidar1_point[:, 1] <= 0
+# mask |= lidar1_point[:, 0] >= img.shape[1] 
+# mask |= lidar1_point[:, 1] >= img.shape[0]
+# mask |= lidar1_point[:, 2] <= 0
+
+mask &= lidar1_point[:, 0] >= start_x
+mask &= lidar1_point[:, 1] >= start_y
+mask &= lidar1_point[:, 0] <= end_x 
+mask &= lidar1_point[:, 1] <= end_y
+mask &= lidar1_point[:, 2] > 0
+
+box_1_mask = box_mask & mask
+wall_1_mask = (~box_mask) & mask
+
+box_1_point_on_image = lidar1_point[box_1_mask].astype(np.int32)
+wall_1_point_on_image = lidar1_point[wall_1_mask].astype(np.int32)
+
+count1_mask = img_gray[box_1_point_on_image[:, 1], box_1_point_on_image[:, 0]] == 0
+count1_mask = img_gray[wall_1_point_on_image[:, 1], wall_1_point_on_image[:, 0]] == 255
+
+count1 = 0
+# mean_depth = np.mean(lidar1[box_1_mask][:, 2])
+
+mean_depth = np.mean(np.linalg.norm(points[box_1_mask], axis=-1))
+for i in range(len(points[box_1_mask])):
+	if img_gray[box_1_point_on_image[i, 1], box_1_point_on_image[i, 0]] == 0:
+		count1 += 1
+for i in range(len(points[wall_1_mask])):
+	if img_gray[wall_1_point_on_image[i, 1], wall_1_point_on_image[i, 0]] == 255:
+		count1 += 1
+print("points amount: ", points[mask].shape)
+print("lidar1 : ", count1)
+print("mean depth: ", mean_depth)
+print("out of range width: ", mean_depth*np.tan(count1*resolution*np.pi/180), "m")
+# print("lidar1_point.shape: ", lidar1_point.shape)
+#################################################
+points = read_pcd.read_pcd(lidar2_point_cloud_path)
+points = np.stack((-1*points[:, 1], -1*points[:, 2], points[:, 0]), axis=-1)
+points = points[points[:, 2] < 3]
+points_sort_id = np.argsort(points[:, 0])
+points = points[points_sort_id]
+
+lidarRoi = select_lidar_roi.LidarRoi(points)
+lidarRoi.show_figure()
+
+tmp_mask1 = points[:, 0] >= lidarRoi.x_roi[0]
+tmp_mask1 &= points[:, 0] <= lidarRoi.x_roi[1]
+tmp_mask2 = points[:, 2] >= lidarRoi.z_roi[0]
+tmp_mask2 &= points[:, 2] <= lidarRoi.z_roi[1]
+box_mask = tmp_mask1 & tmp_mask2
+
+lidar2 = np.dot(points, R_2.T) + T_2.T
+lidar2 = np.dot(lidar2, zed_K.T)
+
+mask = lidar2[:, 2] > 0
+
+lidar2_point = copy.deepcopy(lidar2)
+for i in range(2):
+    lidar2_point[:, i] = lidar2_point[:, i] / lidar2_point[:, 2]
+# mask = lidar2_point[:, 0] <= 0
+# mask |= lidar2_point[:, 1] <= 0
+# mask |= lidar2_point[:, 0] >= img.shape[1]
+# mask |= lidar2_point[:, 1] >= img.shape[0]
+# mask |= lidar2_point[:, 2] <= 0
+
+mask &= lidar2_point[:, 0] >= start_x
+mask &= lidar2_point[:, 1] >= start_y
+mask &= lidar2_point[:, 0] <= end_x 
+mask &= lidar2_point[:, 1] <= end_y
+mask &= lidar2_point[:, 2] >= 0
+
+box_2_mask = box_mask & mask
+wall_2_mask = (~box_mask) & mask
+
+box_2_point_on_image = lidar2_point[box_2_mask].astype(np.int32)
+wall_2_point_on_image = lidar2_point[wall_2_mask].astype(np.int32)
+
+count2_mask = img_gray[box_2_point_on_image[:, 1], box_2_point_on_image[:, 0]] == 0
+count2 = len(np.where(count2_mask == True))
+
+count2_mask = img_gray[wall_2_point_on_image[:, 1], wall_2_point_on_image[:, 0]] == 255
+
+count2 = 0
+mean_depth = np.mean(lidar2[box_2_mask][:, 2])
+mean_depth = np.mean(np.linalg.norm(points[box_2_mask], axis=-1))
+for i in range(len(points[box_2_mask])):
+	if img_gray[box_2_point_on_image[i, 1], box_2_point_on_image[i, 0]] == 0:
+		count2 += 1
+for i in range(len(points[wall_2_mask])):
+	if img_gray[wall_2_point_on_image[i, 1], wall_2_point_on_image[i, 0]] == 255:
+		count2 += 1
+print("points amount: ",points[mask].shape)
+print("lidar2 : ", count2)
+print("mean depth: ", mean_depth)
+print("out of range width: ", mean_depth*np.tan(count2*resolution*np.pi/180), "m")
+box_on_image = np.vstack((box_1_point_on_image, box_2_point_on_image))
+wall_on_image = np.vstack((wall_1_point_on_image, wall_2_point_on_image))
+# lidar = lidar1_point
+
+
+
+for i in range(len(box_on_image)):
+	cv2.circle(img, (int(box_on_image[i, 0]), int(box_on_image[i, 1])), 2, (0, 0, 255), -1)
+	cv2.circle(img_compute, (int(box_on_image[i, 0]), int(box_on_image[i, 1])), 2, (0, 0, 255), -1)
+for i in range(len(wall_on_image)):
+	cv2.circle(img, (int(wall_on_image[i, 0]), int(wall_on_image[i, 1])), 2, (0, 0, 255), -1)
+	cv2.circle(img_compute, (int(wall_on_image[i, 0]), int(wall_on_image[i, 1])), 2, (255, 0, 0), -1)
+cv2.namedWindow("hi", 0)
+cv2.namedWindow("proc", 0)
+cv2.imshow("hi", img)
+cv2.imshow("proc", img_compute)
+cv2.waitKey(0)
+cv2.destroyAllWindows()

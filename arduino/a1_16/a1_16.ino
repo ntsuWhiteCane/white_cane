@@ -17,9 +17,7 @@
 #define CMD_REBOOT                         0x09
 #define CMD_ACK_REBOOT                     0x49
 #define ID 16   //A1-16 ID
-//int digital0, digital1;
-//int i[50] = {0};
-//int a = 0;
+
 //--------------------------------------------------------------------------------------------------------------
 
 unsigned int checksum_1;

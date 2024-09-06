@@ -7,7 +7,7 @@ from scipy.spatial.transform import Rotation
 
 threshold = 0.01
 
-ind = 1 
+ind = 20
 data_index = str(ind).zfill(4)
 block_size = 80
 
@@ -15,7 +15,7 @@ zed_K = np.array([[3.506789914489589e+02, 0, 3.127677577917245e+02],
 				  [0, 3.510410495486862e+02, 1.875433445883912e+02],
 				  [0, 0, 1]])
 
-image_path = ".\\lidar1_to_cam\\Images\\" + data_index +".png"
+image_path = ".\\lidar2_to_cam\\Images\\" + data_index +".png"
 
 image_points = []
 image = cv2.imread(image_path, -1)
@@ -96,7 +96,7 @@ ans = input("collect camera points? ")
 if ans == 'y':
 	directory_name = input("Directory Name: ")
 	base_path = os.path.join("data_list", directory_name)
-	image_points_path = os.path.join(base_path, "lidar_points.npy")
+	image_points_path = os.path.join(base_path, "image_points.npy")
 	world_points_path = os.path.join(base_path, "world_points.npy")
 	R_path = os.path.join(base_path, "R.npy")
 	T_path = os.path.join(base_path, "T.npy")

@@ -1,39 +1,30 @@
 import numpy as np
-A_w = np.array([1, 0, 0])
-B_w = np.array([0, 1, 0])
-D_w = np.array([0, 0, 1])
-C_w = np.array([1, 1, 1])
-# # C_lidar = newton_raphson.newton_raphson(A_point=A_w, B_point=B_w, D_point=D_w, len_a=np.linalg.norm(A_lidar), len_b=np.linalg.norm(B_lidar), len_d=np.linalg.norm(D_lidar))
-# # print(C_w)
-A_lidar = np.array([-1, 1, 0])
-B_lidar = np.array([0, 1, 1])
-D_lidar = np.array([-1, 0, 1])
-C_lidar = np.array([0, 0, 0])
 
-world_points = np.stack((A_w, B_w, C_w, D_w))
-lidar_points = np.stack((A_lidar, B_lidar, C_lidar, D_lidar))
+lidar1_R = np.load(".\\data_list\\lidar1\\R.npy")
+lidar1_T = np.load(".\\data_list\\lidar1\\T.npy")
 
-world_points_mass_center = (A_w + B_w + C_w + D_w)/4
-lidar_points_mass_center = (A_lidar + B_lidar + C_lidar + D_lidar)/4
+zed1_R = np.load(".\\data_list\\zed1\\R.npy")
+zed1_T = np.load(".\\data_list\\zed1\\T.npy")
 
-world_points_new = world_points - world_points_mass_center
-lidar_points_new = lidar_points - lidar_points_mass_center
+R_1 = np.dot(zed1_R, lidar1_R)
+T_1 = np.dot(zed1_R, lidar1_T) + zed1_T 
 
-H = np.dot(lidar_points_new.T, world_points_new)
-# print(H)
-U, sigma, VT = np.linalg.svd(H)
+print(R_1)
+print(T_1)
 
-R = np.dot(VT.T, U.T)
-print()
-# print(R)
+lidar2_R = np.load(".\\data_list\\lidar2\\R.npy")
+lidar2_T = np.load(".\\data_list\\lidar2\\T.npy")
 
-T = world_points_mass_center.T - np.dot(R, lidar_points_mass_center.T)
+zed2_R = np.load(".\\data_list\\zed2\\R.npy")
+zed2_T = np.load(".\\data_list\\zed2\\T.npy")
+R_2 = np.dot(zed2_R, lidar2_R)
+T_2 = np.dot(zed2_R, lidar2_T) + zed2_T 
 
-print("world: ", world_points)
-print("lidar: ", lidar_points)
-print(f"R_1: \n{R}")
-print(f"T_1: {T}")
-print(np.linalg.det(R))
-a = np.linalg.norm(world_points, axis=-1) 
-print(np.linalg.norm(world_points, axis=-1))
-print(np.mean(a))
+print(R_2)
+print(T_2)
+
+R_3 = np.dot(R_1.T, R_2)
+T_3 = np.dot(R_1.T, T_2) - T_1
+
+print(R_3)
+print(T_3)

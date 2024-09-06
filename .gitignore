@@ -1,0 +1,13 @@
+.vscode/
+.vscode/**
+*.exe
+draw.m
+test.m
+*.png
+*.pgm
+*.pcd
+*.pfm
+*.npy
+__pycache__
+*.bag
+*.mat

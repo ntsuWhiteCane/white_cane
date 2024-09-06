@@ -10,9 +10,9 @@ import select_lidar_roi
 
 threshold = 0.01
 
-ind = 1
+ind = 20
 data_index = str(ind).zfill(4)
-lidar1_point_cloud_path = ".\\lidar1_to_cam\\PointClouds1\\" + data_index + ".pcd"
+lidar1_point_cloud_path = ".\\lidar2_to_cam\\PointClouds2\\" + data_index + ".pcd"
 
 points = read_pcd.read_pcd(lidar1_point_cloud_path)
 points = np.stack((-1*points[:, 1], -1*points[:, 2], points[:, 0]), axis=-1)

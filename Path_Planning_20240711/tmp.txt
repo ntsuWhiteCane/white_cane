@@ -83,3 +83,166 @@
 	}
 
 remove the tri_point in voronoi function 
+
+
+
+update replan a*
+/////////create a node connected to the starting point///////////
+	if(is_break == 0){
+		init = _find_connect_point(init_pos, vex_edge, init_num_vec, dist_init);
+	}
+	// if (is_break == 0) {
+	// 	for (int i = 0; i< 3; ++i){
+	// 		// smallest is the mininmum distance of some vertex to initial point
+	// 		smallest = std::min_element(std::begin(dist_init), std::end(dist_init));
+	// 		// find the minimum distance position in dist_init array 
+	// 		small_pos = std::distance(std::begin(dist_init), smallest);
+	// 		// our id is start from 1
+	// 		// putting the 3 points that closest point of the starting points
+	// 		three_min_dis_p.push_back(init_num_vec[small_pos] + 1);
+
+	// 		// let closest point of starting points be a large number 
+	// 		// -> to find next closest point
+	// 		dist_init[small_pos] = 99999;
+	// 	}
+
+	// 	dist_init.clear();
+	// 	for (int i = 0; i < three_min_dis_p.size(); i++) {
+	// 		// put the a* algo cost of the 3 points that closest point of the starting points 
+	// 		// to find the most avaliable point that starting point connect
+	// 		dist_init.push_back(sqrt(pow(vex_edge[three_min_dis_p[i] - 1].x - init_pos.x, 2) + pow(vex_edge[three_min_dis_p[i] - 1].y - init_pos.y, 2)) + sqrt(pow(vex_edge[three_min_dis_p[i] - 1].x - goal_pos.x, 2)
+	// 			+ pow(vex_edge[three_min_dis_p[i] - 1].y - goal_pos.y, 2)));
+	// 	}
+
+	// 	for (int n = 0; n< 3; ++n){
+	// 		smallest = std::min_element(std::begin(dist_init), std::end(dist_init));
+	// 		small_pos = std::distance(std::begin(dist_init), smallest);
+	// 		// get roi 
+	// 		i_init = MIN(vex_edge[three_min_dis_p[small_pos] - 1].x, init_pos.x);
+	// 		j_init = MIN(vex_edge[three_min_dis_p[small_pos] - 1].y, init_pos.y);
+	// 		i_back = MAX(vex_edge[three_min_dis_p[small_pos] - 1].x, init_pos.x);
+	// 		j_back = MAX(vex_edge[three_min_dis_p[small_pos] - 1].y, init_pos.y);
+	// 		is_line_obs = 0;
+	// 		for (int i = i_init; i <= i_back; i++) {
+	// 			for (int j = j_init; j <= j_back; j++) {	
+	// 				if (img.at<uint8_t>(j, i) == 0) {
+	// 					is_line_obs = 1;
+	// 					break;
+	// 				}
+	// 			}
+	// 			if (is_line_obs == 1) {
+	// 				break;
+	// 			}
+	// 		}
+	// 		// if the closest point has obstacle in roi then chose the next closet point of starting point
+	// 		// if first and second time both have obstcle in roi, no matter is third time has obstcle in roi 
+	// 		// chose the third point
+	// 		if (is_line_obs == 1 && n< 2) {
+	// 			dist_init[small_pos] = 9999;
+	// 			smallest = std::min_element(std::begin(dist_init), std::end(dist_init));
+	// 			small_pos = std::distance(std::begin(dist_init), smallest);
+	// 		}
+	// 		else{
+	// 			break;
+	// 		}
+	// 	}
+
+	// 	// add initial_pos into vex_edge
+	// 	vex_edge[vex_edge[0].vex_size].num = vex_edge[0].vex_size + 1;
+	// 	vex_edge[vex_edge[0].vex_size].x = init_pos.x;
+	// 	vex_edge[vex_edge[0].vex_size].y = init_pos.y;
+	// 	vex_edge[0].vex_size++;
+
+	// 	// link the starting point to link point
+	// 	vex_edge[vex_edge[0].edge_size].edge_link_num[0] = vex_edge[vex_edge[0].vex_size - 1].num;
+	// 	vex_edge[vex_edge[0].edge_size].edge_link_num[1] = three_min_dis_p[small_pos];
+	// 	vex_edge[0].edge_size++;
+
+	// 	init = vex_edge[vex_edge[0].vex_size - 1].num;
+	// }
+
+	/////////Create a node connected to the starting point///////////
+
+	//////Determine whether the end point is on the node//////
+	vector<int> goal_num_vec;
+	float each_goal_dis = 0;
+	is_break = 0;
+	is_line_obs = 0;
+	for (int i = 0; i < vex_edge[0].vex_size; i++) {
+		each_goal_dis = sqrt(pow(vex_edge[i].x - goal_pos.x, 2) + pow(vex_edge[i].y - goal_pos.y, 2));
+		goal_num_vec.push_back(i);
+		dist_goal.push_back(sqrt(pow(vex_edge[i].x - goal_pos.x, 2) + pow(vex_edge[i].y - goal_pos.y, 2)));
+
+		if (each_goal_dis < 1) {
+			goal = vex_edge[i].num;
+			is_break = 1;
+			break;
+		}
+	}
+	//////Determine whether the end point is on the node//////
+	if(is_break == 0){
+		goal = _find_connect_point(goal_pos, vex_edge, goal_num_vec, dist_goal);
+	}
+	
+	//////Create a node connected to the end point//////
+	// if (is_break == 0) {
+	// 	for (int i = 0; i< 3; ++i){
+	// 		smallest = std::min_element(std::begin(dist_goal), std::end(dist_goal));
+	// 		small_pos = std::distance(std::begin(dist_goal), smallest);
+	// 		three_min_dis_p2.push_back(goal_num_vec[small_pos] + 1);
+	// 		dist_goal[small_pos] = 99999;
+	// 	}
+	// 	dist_goal.clear();
+
+	// 	for (int i = 0; i < three_min_dis_p2.size(); i++) {
+	// 		dist_goal.push_back(sqrt(pow(vex_edge[three_min_dis_p2[i] - 1].x - init_pos.x, 2) + pow(vex_edge[three_min_dis_p2[i] - 1].y - init_pos.y, 2)) + sqrt(pow(vex_edge[three_min_dis_p2[i] - 1].x - goal_pos.x, 2)
+	// 			+ pow(vex_edge[three_min_dis_p2[i] - 1].y - goal_pos.y, 2)));
+	// 	}
+
+	// 	for(int n = 0; n< 3; ++n){
+	// 		smallest = std::min_element(std::begin(dist_goal), std::end(dist_goal));
+	// 		small_pos = std::distance(std::begin(dist_goal), smallest);
+
+	// 		i_init = MIN(vex_edge[three_min_dis_p2[small_pos] - 1].x, goal_pos.x);
+	// 		j_init = MIN(vex_edge[three_min_dis_p2[small_pos] - 1].y, goal_pos.y);
+	// 		i_back = MAX(vex_edge[three_min_dis_p2[small_pos] - 1].x, goal_pos.x);
+	// 		j_back = MAX(vex_edge[three_min_dis_p2[small_pos] - 1].y, goal_pos.y);	
+
+	// 		is_line_obs = 0;	
+	// 		for (int i = i_init; i <= i_back; i++) {
+	// 			for (int j = j_init; j <= j_back; j++) {
+	// 				if (img.at<uint8_t>(j, i) == 0) {
+	// 					is_line_obs = 1;
+	// 					break;
+	// 				}
+	// 			}
+	// 			if (is_line_obs == 1) {
+	// 				break;
+	// 			}
+	// 		}
+	// 		if (is_line_obs == 1 && n< 2) {
+	// 			dist_goal[small_pos] = 9999;
+	// 			smallest = std::min_element(std::begin(dist_goal), std::end(dist_goal));
+	// 			small_pos = std::distance(std::begin(dist_goal), smallest);
+	// 		}
+	// 		else{
+	// 			break;
+	// 		}
+	// 	}
+
+	// 	vex_edge[vex_edge[0].vex_size].num = vex_edge[0].vex_size + 1;
+	// 	vex_edge[vex_edge[0].vex_size].x = goal_pos.x;
+	// 	vex_edge[vex_edge[0].vex_size].y = goal_pos.y;
+	// 	vex_edge[0].vex_size++;
+
+	// 	vex_edge[vex_edge[0].edge_size].edge_link_num[0] = vex_edge[vex_edge[0].vex_size - 1].num;
+	// 	vex_edge[vex_edge[0].edge_size].edge_link_num[1] = three_min_dis_p2[small_pos];
+	// 	vex_edge[0].edge_size++;
+
+	// 	goal = vex_edge[vex_edge[0].vex_size - 1].num;
+
+	// }
+	//////Create a node connected to the end point//////
+
+	cout << "init:" << init << endl;
+	cout << "goal:" << goal << endl;

@@ -1,39 +1,33 @@
-import numpy as np
-A_w = np.array([1, 0, 0])
-B_w = np.array([0, 1, 0])
-D_w = np.array([0, 0, 1])
-C_w = np.array([1, 1, 1])
-# # C_lidar = newton_raphson.newton_raphson(A_point=A_w, B_point=B_w, D_point=D_w, len_a=np.linalg.norm(A_lidar), len_b=np.linalg.norm(B_lidar), len_d=np.linalg.norm(D_lidar))
-# # print(C_w)
-A_lidar = np.array([-1, 1, 0])
-B_lidar = np.array([0, 1, 1])
-D_lidar = np.array([-1, 0, 1])
-C_lidar = np.array([0, 0, 0])
+import cv2
+import os
 
-world_points = np.stack((A_w, B_w, C_w, D_w))
-lidar_points = np.stack((A_lidar, B_lidar, C_lidar, D_lidar))
+# Define the path to the directory containing the images
+image_folder = 'test_img\\'
 
-world_points_mass_center = (A_w + B_w + C_w + D_w)/4
-lidar_points_mass_center = (A_lidar + B_lidar + C_lidar + D_lidar)/4
+# Create a window to display the images
+cv2.namedWindow('Image Sequence', cv2.WINDOW_NORMAL)
+# img = cv2.imread(image_folder + "0001.png")
+# cv2.imshow("i", img)
+# cv2.waitKey(0)
+# Loop through each image in the sequence
+for i in range(1, 223):  # 0000.png to 0300.png, so 301 images in total
+    # Generate the filename with leading zeros
+    filename = os.path.join(image_folder, f'{i:04d}.png')
+    
+    # Read the image
+    img = cv2.imread(filename)
+    
+    # If the image was successfully read
+    if img is not None:
+        # Display the image in the window
+        cv2.imshow('Image Sequence', img)
+        
+        # Wait for a short duration before showing the next image (e.g., 30ms)
+        if cv2.waitKey(300) & 0xFF == ord('q'):
+            break
+    else:
+        print(f'Image {filename} not found or unable to load.')
+        break
 
-world_points_new = world_points - world_points_mass_center
-lidar_points_new = lidar_points - lidar_points_mass_center
-
-H = np.dot(lidar_points_new.T, world_points_new)
-# print(H)
-U, sigma, VT = np.linalg.svd(H)
-
-R = np.dot(VT.T, U.T)
-print()
-# print(R)
-
-T = world_points_mass_center.T - np.dot(R, lidar_points_mass_center.T)
-
-print("world: ", world_points)
-print("lidar: ", lidar_points)
-print(f"R_1: \n{R}")
-print(f"T_1: {T}")
-print(np.linalg.det(R))
-a = np.linalg.norm(world_points, axis=-1) 
-print(np.linalg.norm(world_points, axis=-1))
-print(np.mean(a))
+# Release the window
+cv2.destroyAllWindows()

@@ -56,3 +56,5 @@ if __name__ == '__main__':
         
         # save numpy data to npy file
         np.save(output_path, array)
+        # remove the pfm file
+        os.remove(input_path)

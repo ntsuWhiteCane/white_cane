@@ -94,6 +94,7 @@ void WhiteCane::run(){
 
 	Mat astar_img = pathPlanning->getRGBMap();
 	goal_num = pathPlanning->replan_astar(astar_img, mix_vex_edge, path_final_j_inv, cut_path_glob, fixed_path, left_point, is_on_path, robot_next_pos);
+	myNameSpace::myImshow("replan astar", astar_img);
 
 	myNameSpace::myWaitKey();
 }

@@ -345,7 +345,6 @@ void PathPlanning::voronoi(Mat &outputImage, Voronoi_vertex *vertex_edge){
 
 }
 
-
 bool PathPlanning::isThroughObstacle(Point a, Point b, int thickness){
 	int min_x = MIN(a.x, b.x);
 	int min_y = MIN(a.y, b.y);
@@ -378,7 +377,6 @@ bool PathPlanning::isThroughObstacle(Point a, Point b, int thickness){
 }
 
 int PathPlanning::replan_astar(Mat &outputImg, Voronoi_vertex *vex_edge, vector<int> &path_final_j_inv, vector<int> &cut_path_glob, vector<int> &fixed_path, Point2f left_point, int is_on_path, Point2f &next_pos){
-	int goal_num;
 	// close_list is an array used to store whether a node has been traversed during the execution of the A* algorithm. 
 	int close_list[2000] = {0};
 
@@ -390,13 +388,11 @@ int PathPlanning::replan_astar(Mat &outputImg, Voronoi_vertex *vex_edge, vector<
 	// In other words, the predecessor of the vertex with ID 300 is the vertex with ID 129.
 	int dis_path[2000] = {0};
 
-	int init, goal, cost, after_num;
+	int init, goal, cost;
 	float x, y, g_num, f_num, x2, y2, g2_num, f2_num;
-	vector<float> cell, cell_h, action, invpath, path;
+	vector<float> cell, cell_h, action, path;
 	vector<int> delta;
-	vector<int> open_list, priority, near_point;
 	vector<float> dist_goal, dist_init, tmp_dist;
-	int open_p = 0;
 	int small_pos = 0;
 	bool found = false, resign = false;
 	Point2f init_pos, goal_pos;
@@ -487,78 +483,10 @@ int PathPlanning::replan_astar(Mat &outputImg, Voronoi_vertex *vex_edge, vector<
 	}
 	cout << "is_break:" << is_break << endl;
 
-	/////////create a node connected to the starting point///////////
-	if (is_break == 0) {
-		for (int i = 0; i< 3; ++i){
-			// smallest is the mininmum distance of some vertex to initial point
-			smallest = std::min_element(std::begin(dist_init), std::end(dist_init));
-			// find the minimum distance position in dist_init array 
-			small_pos = std::distance(std::begin(dist_init), smallest);
-			// our id is start from 1
-			// putting the 3 points that closest point of the starting points
-			three_min_dis_p.push_back(init_num_vec[small_pos] + 1);
-
-			// let closest point of starting points be a large number 
-			// -> to find next closest point
-			dist_init[small_pos] = 99999;
-		}
-
-		dist_init.clear();
-		for (int i = 0; i < three_min_dis_p.size(); i++) {
-			// put the a* algo cost of the 3 points that closest point of the starting points 
-			// to find the most avaliable point that starting point connect
-			dist_init.push_back(sqrt(pow(vex_edge[three_min_dis_p[i] - 1].x - init_pos.x, 2) + pow(vex_edge[three_min_dis_p[i] - 1].y - init_pos.y, 2)) + sqrt(pow(vex_edge[three_min_dis_p[i] - 1].x - goal_pos.x, 2)
-				+ pow(vex_edge[three_min_dis_p[i] - 1].y - goal_pos.y, 2)));
-		}
-
-		for (int n = 0; n< 3; ++n){
-			smallest = std::min_element(std::begin(dist_init), std::end(dist_init));
-			small_pos = std::distance(std::begin(dist_init), smallest);
-			// get roi 
-			i_init = MIN(vex_edge[three_min_dis_p[small_pos] - 1].x, init_pos.x);
-			j_init = MIN(vex_edge[three_min_dis_p[small_pos] - 1].y, init_pos.y);
-			i_back = MAX(vex_edge[three_min_dis_p[small_pos] - 1].x, init_pos.x);
-			j_back = MAX(vex_edge[three_min_dis_p[small_pos] - 1].y, init_pos.y);
-			is_line_obs = 0;
-			for (int i = i_init; i <= i_back; i++) {
-				for (int j = j_init; j <= j_back; j++) {	
-					if (img.at<uint8_t>(j, i) == 0) {
-						is_line_obs = 1;
-						break;
-					}
-				}
-				if (is_line_obs == 1) {
-					break;
-				}
-			}
-			// if the closest point has obstacle in roi then chose the next closet point of starting point
-			// if first and second time both have obstcle in roi, no matter is third time has obstcle in roi 
-			// chose the third point
-			if (is_line_obs == 1 && n< 2) {
-				dist_init[small_pos] = 9999;
-				smallest = std::min_element(std::begin(dist_init), std::end(dist_init));
-				small_pos = std::distance(std::begin(dist_init), smallest);
-			}
-			else{
-				break;
-			}
-		}
-
-		// add initial_pos into vex_edge
-		vex_edge[vex_edge[0].vex_size].num = vex_edge[0].vex_size + 1;
-		vex_edge[vex_edge[0].vex_size].x = init_pos.x;
-		vex_edge[vex_edge[0].vex_size].y = init_pos.y;
-		vex_edge[0].vex_size++;
-
-		// link the starting point to link point
-		vex_edge[vex_edge[0].edge_size].edge_link_num[0] = vex_edge[vex_edge[0].vex_size - 1].num;
-		vex_edge[vex_edge[0].edge_size].edge_link_num[1] = three_min_dis_p[small_pos];
-		vex_edge[0].edge_size++;
-
-		init = vex_edge[vex_edge[0].vex_size - 1].num;
+	// create a node connected to the starting point
+	if(is_break == 0){
+		init = _find_connect_point(init_pos, vex_edge, init_num_vec, dist_init);
 	}
-
-	/////////Create a node connected to the starting point///////////
 
 	//////Determine whether the end point is on the node//////
 	vector<int> goal_num_vec;
@@ -572,7 +500,6 @@ int PathPlanning::replan_astar(Mat &outputImg, Voronoi_vertex *vex_edge, vector<
 
 		if (each_goal_dis < 1) {
 			goal = vex_edge[i].num;
-			goal_num = vex_edge[i].num;
 			is_break = 1;
 			break;
 		}
@@ -580,64 +507,10 @@ int PathPlanning::replan_astar(Mat &outputImg, Voronoi_vertex *vex_edge, vector<
 	//////Determine whether the end point is on the node//////
 
 	//////Create a node connected to the end point//////
-	if (is_break == 0) {
-		for (int i = 0; i< 3; ++i){
-			smallest = std::min_element(std::begin(dist_goal), std::end(dist_goal));
-			small_pos = std::distance(std::begin(dist_goal), smallest);
-			three_min_dis_p2.push_back(goal_num_vec[small_pos] + 1);
-			dist_goal[small_pos] = 99999;
-		}
-		dist_goal.clear();
-
-		for (int i = 0; i < three_min_dis_p2.size(); i++) {
-			dist_goal.push_back(sqrt(pow(vex_edge[three_min_dis_p2[i] - 1].x - init_pos.x, 2) + pow(vex_edge[three_min_dis_p2[i] - 1].y - init_pos.y, 2)) + sqrt(pow(vex_edge[three_min_dis_p2[i] - 1].x - goal_pos.x, 2)
-				+ pow(vex_edge[three_min_dis_p2[i] - 1].y - goal_pos.y, 2)));
-		}
-
-		for(int n = 0; n< 3; ++n){
-			smallest = std::min_element(std::begin(dist_goal), std::end(dist_goal));
-			small_pos = std::distance(std::begin(dist_goal), smallest);
-
-			i_init = MIN(vex_edge[three_min_dis_p2[small_pos] - 1].x, goal_pos.x);
-			j_init = MIN(vex_edge[three_min_dis_p2[small_pos] - 1].y, goal_pos.y);
-			i_back = MAX(vex_edge[three_min_dis_p2[small_pos] - 1].x, goal_pos.x);
-			j_back = MAX(vex_edge[three_min_dis_p2[small_pos] - 1].y, goal_pos.y);	
-
-			is_line_obs = 0;	
-			for (int i = i_init; i <= i_back; i++) {
-				for (int j = j_init; j <= j_back; j++) {
-					if (img.at<uint8_t>(j, i) == 0) {
-						is_line_obs = 1;
-						break;
-					}
-				}
-				if (is_line_obs == 1) {
-					break;
-				}
-			}
-			if (is_line_obs == 1 && n< 2) {
-				dist_goal[small_pos] = 9999;
-				smallest = std::min_element(std::begin(dist_goal), std::end(dist_goal));
-				small_pos = std::distance(std::begin(dist_goal), smallest);
-			}
-			else{
-				break;
-			}
-		}
-
-		vex_edge[vex_edge[0].vex_size].num = vex_edge[0].vex_size + 1;
-		vex_edge[vex_edge[0].vex_size].x = goal_pos.x;
-		vex_edge[vex_edge[0].vex_size].y = goal_pos.y;
-		vex_edge[0].vex_size++;
-
-		vex_edge[vex_edge[0].edge_size].edge_link_num[0] = vex_edge[vex_edge[0].vex_size - 1].num;
-		vex_edge[vex_edge[0].edge_size].edge_link_num[1] = three_min_dis_p2[small_pos];
-		vex_edge[0].edge_size++;
-
-		goal = vex_edge[vex_edge[0].vex_size - 1].num;
-		goal_num = vex_edge[vex_edge[0].vex_size - 1].num;
-
+	if(is_break == 0){
+		goal = _find_connect_point(goal_pos, vex_edge, goal_num_vec, dist_goal);
 	}
+	
 	//////Create a node connected to the end point//////
 
 	cout << "init:" << init << endl;
@@ -745,7 +618,7 @@ int PathPlanning::replan_astar(Mat &outputImg, Voronoi_vertex *vex_edge, vector<
 	}
 	///////compute A*///////////
 
-	///////find path////////
+	// find path
 	vector<int> path_final_j;
 	path_final_j.clear();
 	path_final_j_inv.clear();
@@ -762,46 +635,111 @@ int PathPlanning::replan_astar(Mat &outputImg, Voronoi_vertex *vex_edge, vector<
 	for (int i = path_final_j.size() - 1; i >= 0; i--) {
 		path_final_j_inv.push_back(path_final_j[i]);
 	}
-	///////find path////////
 	
 
-	///////draw path planning//////////
+	// draw path planning
 	if (resign == true) {
-		//line(img, Point2f(vex_edge[init - 1].x, vex_edge[init - 1].y), Point2f(vex_edge[goal - 1].x, vex_edge[goal - 1].y), Scalar(255, 100, 255), 1, CV_AA);
-		line(outputImg, Point2f(vex_edge[init - 1].x, vex_edge[init - 1].y), Point2f(goal_pos.x, goal_pos.y), Scalar(255, 100, 255), 1, LINE_AA);
+		// line(img, Point2f(vex_edge[init - 1].x, vex_edge[init - 1].y), Point2f(vex_edge[goal - 1].x, vex_edge[goal - 1].y), Scalar(255, 100, 255), 1, CV_AA);
+		// line(outputImg, Point2f(vex_edge[init - 1].x, vex_edge[init - 1].y), Point2f(goal_pos.x, goal_pos.y), Scalar(255, 100, 255), 1, LINE_AA);
+		return PATH_PLANNING_FAIL;
+		
 	}
-	else {
-		if (abs(goal_pos.x - init_pos.x) < 1 && abs(goal_pos.y - init_pos.y) < 1) {
 
+	if (!(abs(goal_pos.x - init_pos.x) < 1 && abs(goal_pos.y - init_pos.y) < 1)) {
+		for (int i = 0; i < path_final_j.size() - 1; i++) {
+			//line(img, Point2f(vex_edge[path_final_j[i] - 1].x, vex_edge[path_final_j[i] - 1].y), Point2f(vex_edge[path_final_j[i + 1] - 1].x, vex_edge[path_final_j[i + 1] - 1].y), Scalar(255, 0, 0), 1, CV_AA);
+			line(ori_astar_show, Point2f(vex_edge[path_final_j[i] - 1].x, vex_edge[path_final_j[i] - 1].y), Point2f(vex_edge[path_final_j[i + 1] - 1].x, vex_edge[path_final_j[i + 1] - 1].y), Scalar(255, 0, 0), 1, LINE_AA);
 		}
-		else {
-			for (int i = 0; i < path_final_j.size() - 1; i++) {
+		//line(img, Point2f(vex_edge[path_final_j[0] - 1].x, vex_edge[path_final_j[0] - 1].y), Point2f(goal_pos.x, goal_pos.y), Scalar(255, 0, 0), 1, CV_AA);
+		line(ori_astar_show, Point2f(vex_edge[path_final_j[0] - 1].x, vex_edge[path_final_j[0] - 1].y), Point2f(goal_pos.x, goal_pos.y), Scalar(255, 0, 0), 1, LINE_AA);
 
-				//line(img, Point2f(vex_edge[path_final_j[i] - 1].x, vex_edge[path_final_j[i] - 1].y), Point2f(vex_edge[path_final_j[i + 1] - 1].x, vex_edge[path_final_j[i + 1] - 1].y), Scalar(255, 0, 0), 1, CV_AA);
-				line(ori_astar_show, Point2f(vex_edge[path_final_j[i] - 1].x, vex_edge[path_final_j[i] - 1].y), Point2f(vex_edge[path_final_j[i + 1] - 1].x, vex_edge[path_final_j[i + 1] - 1].y), Scalar(255, 0, 0), 1, LINE_AA);
-
-			}
-			//line(img, Point2f(vex_edge[path_final_j[0] - 1].x, vex_edge[path_final_j[0] - 1].y), Point2f(goal_pos.x, goal_pos.y), Scalar(255, 0, 0), 1, CV_AA);
-			line(ori_astar_show, Point2f(vex_edge[path_final_j[0] - 1].x, vex_edge[path_final_j[0] - 1].y), Point2f(goal_pos.x, goal_pos.y), Scalar(255, 0, 0), 1, LINE_AA);
-
-			for (int i = 0; i < path_final_j.size(); i++) {
-				circle(ori_astar_show, Point2f(vex_edge[path_final_j[i] - 1].x, vex_edge[path_final_j[i] - 1].y), 3, Scalar(0, 0, 250), FILLED);
-				//circle(img, Point2f(vex_edge[cut_path[i] - 1].x, vex_edge[cut_path[i] - 1].y), 3, Scalar(100, 0, 255), FILLED);
-			}
+		for (int i = 0; i < path_final_j.size(); i++) {
+			circle(ori_astar_show, Point2f(vex_edge[path_final_j[i] - 1].x, vex_edge[path_final_j[i] - 1].y), 3, Scalar(0, 0, 250), FILLED);
+			// circle(img, Point2f(vex_edge[cut_path[i] - 1].x, vex_edge[cut_path[i] - 1].y), 3, Scalar(100, 0, 255), FILLED);
 		}
 	}
 	circle(ori_astar_show, Point2f(vex_edge[init - 1].x, vex_edge[init - 1].y), 4, Scalar(0, 0, 255), FILLED);
 	circle(ori_astar_show, Point2f(vex_edge[path_final_j[0] - 1].x, vex_edge[path_final_j[0] - 1].y), 4, Scalar(0, 255, 0), FILLED);
+
 	myNameSpace::myImshow("ori_astar_show", ori_astar_show);
 	///////darw the path planning//////////
 
 
 	// Reduce walking nodes (but will not speed up calculation time) - count from the starting point
 	cut_path_glob.clear();
+	vector<int> cut_path;
+
+	_path_short_cut(path_final_j_inv, &cut_path, vex_edge);
+	
+	cut_path_glob = cut_path;
+
+	for (int i = 0; i < cut_path.size() - 1; i++) {
+		line(outputImg, Point2f(vex_edge[cut_path[i] - 1].x, vex_edge[cut_path[i] - 1].y), Point2f(vex_edge[cut_path[i + 1] - 1].x, vex_edge[cut_path[i + 1] - 1].y), Scalar(255, 0, 0), 2, LINE_AA);
+	}
+	for (int i = 0; i < cut_path.size(); i++) {
+		circle(outputImg, Point2f(vex_edge[cut_path[i] - 1].x, vex_edge[cut_path[i] - 1].y), 2, Scalar(200, 0, 255), FILLED);
+		cout << Point2f(vex_edge[cut_path[i] - 1].x, vex_edge[cut_path[i] - 1].y) << endl;
+	}
+	circle(outputImg, Point2f(vex_edge[init - 1].x, vex_edge[init - 1].y), 3, Scalar(0, 0, 255), FILLED);
+	circle(outputImg, Point2f(vex_edge[path_final_j[0] - 1].x, vex_edge[path_final_j[0] - 1].y), 3, Scalar(0, 255, 0), FILLED);
+
+	for (int i = 0; i < cut_path.size(); i++) {
+		fixed_path.push_back(cut_path[i]);
+	}
+	//Reduce walking nodes (but will not speed up calculation time) - count from the starting point
+
+
+
+	////determind the next node/////
+	//if (init != goal) {
+	if (path_final_j.size() > 1) {
+		if (abs(vex_edge[cut_path[0] - 1].x - init_pos.x) <= 1 && abs(vex_edge[cut_path[0] - 1].y - init_pos.y) <= 1) {
+			robot_position.x = vex_edge[cut_path[0] - 1].x;
+			robot_position.y = vex_edge[cut_path[0] - 1].y;
+			next_pos.x = vex_edge[cut_path[1] - 1].x;
+			next_pos.y = vex_edge[cut_path[1] - 1].y;
+			// used for the sake of having the same points
+			if (abs(robot_position.x - next_pos.x) < 2 && abs(robot_position.y - next_pos.y) < 2) {
+				robot_position.x = vex_edge[cut_path[1] - 1].x;
+				robot_position.y = vex_edge[cut_path[1] - 1].y;
+				next_pos.x = vex_edge[cut_path[2] - 1].x;
+				next_pos.y = vex_edge[cut_path[2] - 1].y;
+			}
+			cout << "robot current pos 1:" << robot_position << " " << "robot next pos 1:" << next_pos << endl;
+
+		}
+		else {
+			robot_position.x = init_pos.x;
+			robot_position.y = init_pos.y;
+			next_pos.x = vex_edge[cut_path[0] - 1].x;
+			next_pos.y = vex_edge[cut_path[0] - 1].y;
+			cout << "robot current pos 2:" << robot_position << " " << "robot next pos 2:" << next_pos << endl;
+		}
+	}
+	else {
+		robot_position.x = vex_edge[cut_path[0] - 1].x;
+		robot_position.y = vex_edge[cut_path[0] - 1].y;
+		next_pos.x = vex_edge[cut_path[0] - 1].x;
+		next_pos.y = vex_edge[cut_path[0] - 1].y;
+	}
+
+	////decide the next node/////
+
+	// circle(img, Point2f(aft_robot_pos.x, aft_robot_pos.y), 2, Scalar(30, 0, 255), FILLED);
+
+	// myNameSpace::myImshow("replan_astar", outputImg);
+	end_time = clock();
+
+	cout << endl << "runing time of replan_a*: " << (end_time - start_time) / CLOCKS_PER_SEC << " S" << endl;
+	return goal;
+
+}
+
+void PathPlanning::_path_short_cut(vector<int> input_original_path, vector<int> *output_short_cut, Voronoi_vertex *vex_edge){
 	float step_path = 0;
 	int sub_p = 0;
 	vector<int> cut_path, tmp_cut;
-	tmp_cut = path_final_j_inv;
+	tmp_cut = input_original_path;
 
 	// delete the nodes that too close
 	for (int i = 0; i < tmp_cut.size() - 1; i++) {
@@ -885,102 +823,120 @@ int PathPlanning::replan_astar(Mat &outputImg, Voronoi_vertex *vex_edge, vector<
 		}
 	}
 
+	*output_short_cut = cut_path;
 	// cut_path.clear();
-	cut_path_glob = cut_path;
+}
 
-	for (int i = 0; i < cut_path.size() - 1; i++) {
-		line(outputImg, Point2f(vex_edge[cut_path[i] - 1].x, vex_edge[cut_path[i] - 1].y), Point2f(vex_edge[cut_path[i + 1] - 1].x, vex_edge[cut_path[i + 1] - 1].y), Scalar(255, 0, 0), 2, LINE_AA);
+int PathPlanning::_find_connect_point(Point2f input_point, Voronoi_vertex *vex_edge, vector<int> num_vec, vector<float> points_distance){
+	vector<float>::iterator smallest;
+	int small_pos = 0;
+	vector<int> three_min_dis_p;
+	int i_init, j_init, i_back, j_back, is_line_obs = 0;
+
+	Point2f init_pos = robot_position;
+	// end_point
+	Point2f goal_pos = goal_position;
+
+	for (int i = 0; i< 3; ++i){
+		// smallest is the mininmum distance of some vertex to initial point
+		smallest = std::min_element(std::begin(points_distance), std::end(points_distance));
+		// find the minimum distance position in dist_init array 
+		small_pos = std::distance(std::begin(points_distance), smallest);
+		// our id is start from 1
+		// putting the 3 points that closest point of the starting points
+		three_min_dis_p.push_back(num_vec[small_pos] + 1);
+
+		// let closest point of starting points be a large number 
+		// -> to find next closest point
+		points_distance[small_pos] = 99999;
 	}
-	for (int i = 0; i < cut_path.size(); i++) {
-		circle(outputImg, Point2f(vex_edge[cut_path[i] - 1].x, vex_edge[cut_path[i] - 1].y), 2, Scalar(200, 0, 255), FILLED);
-		cout << Point2f(vex_edge[cut_path[i] - 1].x, vex_edge[cut_path[i] - 1].y) << endl;
+
+	points_distance.clear();
+	for (int i = 0; i < three_min_dis_p.size(); i++) {
+		// put the a* algo cost of the 3 points that closest point of the starting points 
+		// to find the most avaliable point that starting point connect
+		points_distance.push_back(sqrt(pow(vex_edge[three_min_dis_p[i] - 1].x - init_pos.x, 2) + pow(vex_edge[three_min_dis_p[i] - 1].y - init_pos.y, 2)) + sqrt(pow(vex_edge[three_min_dis_p[i] - 1].x - goal_pos.x, 2)
+			+ pow(vex_edge[three_min_dis_p[i] - 1].y - goal_pos.y, 2)));
 	}
-	circle(outputImg, Point2f(vex_edge[init - 1].x, vex_edge[init - 1].y), 3, Scalar(0, 0, 255), FILLED);
-	circle(outputImg, Point2f(vex_edge[path_final_j[0] - 1].x, vex_edge[path_final_j[0] - 1].y), 3, Scalar(0, 255, 0), FILLED);
 
-	for (int i = 0; i < cut_path.size(); i++) {
-		fixed_path.push_back(cut_path[i]);
-	}
-	//Reduce walking nodes (but will not speed up calculation time) - count from the starting point
-
-
-
-	////determind the next node/////
-	//if (init != goal) {
-	if (path_final_j.size() > 1) {
-		if (abs(vex_edge[cut_path[0] - 1].x - init_pos.x) <= 1 && abs(vex_edge[cut_path[0] - 1].y - init_pos.y) <= 1) {
-			robot_position.x = vex_edge[cut_path[0] - 1].x;
-			robot_position.y = vex_edge[cut_path[0] - 1].y;
-			next_pos.x = vex_edge[cut_path[1] - 1].x;
-			next_pos.y = vex_edge[cut_path[1] - 1].y;
-			// used for the sake of having the same points
-			if (abs(robot_position.x - next_pos.x) < 2 && abs(robot_position.y - next_pos.y) < 2) {
-				robot_position.x = vex_edge[cut_path[1] - 1].x;
-				robot_position.y = vex_edge[cut_path[1] - 1].y;
-				next_pos.x = vex_edge[cut_path[2] - 1].x;
-				next_pos.y = vex_edge[cut_path[2] - 1].y;
+	for (int n = 0; n< 3; ++n){
+		smallest = std::min_element(std::begin(points_distance), std::end(points_distance));
+		small_pos = std::distance(std::begin(points_distance), smallest);
+		// get roi 
+		i_init = MIN(vex_edge[three_min_dis_p[small_pos] - 1].x, input_point.x);
+		j_init = MIN(vex_edge[three_min_dis_p[small_pos] - 1].y, input_point.y);
+		i_back = MAX(vex_edge[three_min_dis_p[small_pos] - 1].x, input_point.x);
+		j_back = MAX(vex_edge[three_min_dis_p[small_pos] - 1].y, input_point.y);
+		is_line_obs = 0;
+		for (int i = i_init; i <= i_back; i++) {
+			for (int j = j_init; j <= j_back; j++) {	
+				if (img.at<uint8_t>(j, i) == 0) {
+					is_line_obs = 1;
+					break;
+				}
 			}
-			cout << "now_pos1:" << robot_position << " " << "r_next_pos1:" << next_pos << endl;
-
+			if (is_line_obs == 1) {
+				break;
+			}
 		}
-		else {
-			robot_position.x = init_pos.x;
-			robot_position.y = init_pos.y;
-			next_pos.x = vex_edge[cut_path[0] - 1].x;
-			next_pos.y = vex_edge[cut_path[0] - 1].y;
-			cout << "r_now_pos2:" << robot_position << " " << "r_next_pos2:" << next_pos << endl;
+		// if the closest point has obstacle in roi then chose the next closet point of starting point
+		// if first and second time both have obstcle in roi, no matter is third time has obstcle in roi 
+		// chose the third point
+		if (is_line_obs == 1 && n< 2) {
+			points_distance[small_pos] = 9999;
+			smallest = std::min_element(std::begin(points_distance), std::end(points_distance));
+			small_pos = std::distance(std::begin(points_distance), smallest);
+		}
+		else{
+			break;
 		}
 	}
-	else {
-		robot_position.x = vex_edge[cut_path[0] - 1].x;
-		robot_position.y = vex_edge[cut_path[0] - 1].y;
-		next_pos.x = vex_edge[cut_path[0] - 1].x;
-		next_pos.y = vex_edge[cut_path[0] - 1].y;
-	}
 
-	////decide the next node/////
+	// add initial_pos into vex_edge
+	vex_edge[vex_edge[0].vex_size].num = vex_edge[0].vex_size + 1;
+	vex_edge[vex_edge[0].vex_size].x = input_point.x;
+	vex_edge[vex_edge[0].vex_size].y = input_point.y;
+	vex_edge[0].vex_size++;
 
-	//circle(img, Point2f(aft_robot_pos.x, aft_robot_pos.y), 2, Scalar(30, 0, 255), FILLED);
+	// link the starting point to link point
+	vex_edge[vex_edge[0].edge_size].edge_link_num[0] = vex_edge[vex_edge[0].vex_size - 1].num;
+	vex_edge[vex_edge[0].edge_size].edge_link_num[1] = three_min_dis_p[small_pos];
+	vex_edge[0].edge_size++;
 
-	myNameSpace::myImshow("replan_astar", outputImg);
-	end_time = clock();
-
-	cout << endl << "runing time of replan_a*: " << (end_time - start_time) / CLOCKS_PER_SEC << " S" << endl;
-	return goal_num;
-
+	return vex_edge[vex_edge[0].vex_size - 1].num; 
 }
 
 Matrix PathPlanning::getMinor(const Matrix& src, int row, int col) {
-    int n = src.size();
-    Matrix minor(n - 1, vector<double>(n - 1));
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = 0; j < n - 1; j++) {
-            minor[i][j] = src[i < row ? i : i + 1][j < col ? j : j + 1];
-        }
-    }
-    return minor;
+	int n = src.size();
+	Matrix minor(n - 1, vector<double>(n - 1));
+	for (int i = 0; i < n - 1; i++) {
+		for (int j = 0; j < n - 1; j++) {
+			minor[i][j] = src[i < row ? i : i + 1][j < col ? j : j + 1];
+		}
+	}
+	return minor;
 }
 
 double PathPlanning::determinant(const Matrix& mat) {
-    int n = mat.size();
-    if (n == 1) return mat[0][0];
-    if (n == 2) return mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0];
-    double det = 0;
-    for (int j = 0; j < n; j++) {
-        det += mat[0][j] * determinant(getMinor(mat, 0, j)) * (j % 2 == 0 ? 1 : -1);
-    }
-    return det;
+	int n = mat.size();
+	if (n == 1) return mat[0][0];
+	if (n == 2) return mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0];
+	double det = 0;
+	for (int j = 0; j < n; j++) {
+		det += mat[0][j] * determinant(getMinor(mat, 0, j)) * (j % 2 == 0 ? 1 : -1);
+	}
+	return det;
 }
 
 Matrix PathPlanning::adjugate(const Matrix& mat) {
-    int n = mat.size();
-    Matrix adj(n, vector<double>(n));
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            adj[j][i] = determinant(getMinor(mat, i, j)) * ((i + j) % 2 == 0 ? 1 : -1);
-        }
-    }
-    return adj;
+	int n = mat.size();
+	Matrix adj(n, vector<double>(n));
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < n; j++) {
+			adj[j][i] = determinant(getMinor(mat, i, j)) * ((i + j) % 2 == 0 ? 1 : -1);
+		}
+	}
+	return adj;
 }
 
 Matrix PathPlanning::inverse(const Matrix& mat){
@@ -998,182 +954,6 @@ Matrix PathPlanning::inverse(const Matrix& mat){
 	return inv;
 }
 
-/*
-void PathPlanning::cubic(vector<double> x, vector<double> y, vector<double> *a, vector<double> *b, vector<double> *c, vector<double> *d){
-	// Matrix inv;
-	
-	int n = x.size() - 1;
-	vector<double> h(n, 0);
-	vector<vector<double>> H(n+1, vector<double>(n+1, 0));
-	vector<double> Y(n+1, 0);
-	vector<double> M(n+1, 0);
-	vector<double> A(n, 0);
-	vector<double> B(n, 0);
-	vector<double> C(n, 0);
-	vector<double> D(n, 0);
-	
-	for(int i = 0; i< n; ++i){
-		h[i] = x[i+1] - x[i];
-	}
-	H[0][0] = 1;
-	H[n][n] = 1;
-	for(int i = 1; i< n; ++i){
-		H[i][i-1] = h[i-1];
-		H[i][i] = 2*(h[i-1] + h[i]);
-		H[i][i+1] = h[i];
-		Y[i] = 6*( (y[i+1] - y[i]) / h[i] - (y[i] - y[i-1]) / h[i - 1]);
-	}
-	Eigen::MatrixXf inv(n+1, n+1);
-	for (int i = 0; i< n+1; ++i){
-		for(int j = 0; j< n+1; ++j){
-			inv(i, j) = H[i][j];
-		}
-	}
-	inv = inv.inverse();
-	
-	
-	for(int i = 0; i< n+1; ++i){
-		double sum = 0;
-		for(int j = 0; j< Y.size(); ++j){
-			sum += inv(i, j) * Y[j];
-			// cout << "inv(" << i << ", " << j << "): " << inv(i, j) << "; " << "Y[" << j << "]: " << Y[j] << "; ";
-			// cout << "sum: " << sum << endl;
-		}
-		M[i] = sum;
-		// cout << "M[" << i << "]: " << M[i] << " ";
-		// cout << endl;
-	}
-	
-	for(int i = 0; i< n; ++i){
-		A[i] = y[i];
-		B[i] = ((y[i+1] - y[i])/h[i]) - (M[i]/2 * h[i]) - ((M[i+1] - M[i])/6 * h[i]);
-		C[i] = M[i] / 2;
-		D[i] = (M[i+1] - M[i]) / (6*h[i]);
-	}
-
-	*a = A;
-	*b = B;
-	*c = C;
-	*d = D;
-
-
-}
-
-void PathPlanning::cubic_spline(int thickness){
-	
-	int path_arc_length = 0;
-	int max_change = 0;
-	int change_count = 0;
-	Mat tmp_img1;
-
-	x.clear();
-	y.clear();
-	t.clear();
-
-	for(int i = 0; i< fixed_path.size(); ++i){
-		// t.push_back(i);
-		x.push_back(mix_vex_edge[fixed_path[i] - 1].x);
-		y.push_back(mix_vex_edge[fixed_path[i] - 1].y);
-	}
-
-	t.push_back(0);
-	for(int i = 0; i< fixed_path.size()-1; ++i){
-		t.push_back(t[i] + sqrt( (x[i+1] - x[i])* (x[i+1] - x[i]) + (y[i+1] - y[i])* (y[i+1] - y[i]) ) / (1/RESOLUTION));
-	}
-
-	path_arc_length = t[fixed_path.size() - 1] * (1/RESOLUTION);
-
-	max_change = fixed_path.size() * 2;
-
-	cubic(t, x, &x_a_coefficient, &x_b_coefficient, &x_c_coefficient, &x_d_coefficient);
-	cubic(t, y, &y_a_coefficient, &y_b_coefficient, &y_c_coefficient, &y_d_coefficient);
-	vector<double> tmp_x_a_coefficient, tmp_x_b_coefficient, tmp_x_c_coefficient, tmp_x_d_coefficient;
-	vector<double> tmp_y_a_coefficient, tmp_y_b_coefficient, tmp_y_c_coefficient, tmp_y_d_coefficient;
-
-	tmp_x_a_coefficient = x_a_coefficient;
-	tmp_x_b_coefficient = x_b_coefficient;
-	tmp_x_c_coefficient = x_c_coefficient;
-	tmp_x_d_coefficient = x_d_coefficient;
-
-	tmp_y_a_coefficient = y_a_coefficient;
-	tmp_y_b_coefficient = y_b_coefficient;
-	tmp_y_c_coefficient = y_c_coefficient;
-	tmp_y_d_coefficient = y_d_coefficient;
-
-	bool path_danger = true;
-	while(path_danger){
-		bool tmp_flag = false;
-
-		if(change_count > max_change){
-			x_a_coefficient = tmp_x_a_coefficient;
-			x_b_coefficient = tmp_x_b_coefficient;
-			x_c_coefficient = tmp_x_c_coefficient;
-			x_d_coefficient = tmp_x_d_coefficient;
-
-			y_a_coefficient = tmp_y_a_coefficient;
-			y_b_coefficient = tmp_y_b_coefficient;
-			y_c_coefficient = tmp_y_c_coefficient;
-			y_d_coefficient = tmp_y_d_coefficient;
-			cout << "avoid fail." << endl;
-			break;
-		}
-
-		for(int i = 0; i< x_a_coefficient.size(); ++i){
-			for(int n = 0; n< 100-1; ++n){
-				Point2f p1, p2;
-				double dt1 = (t[i] + (t[i+1] - t[i]) / 100 * n) - t[i];
-				double dt2 = (t[i] + (t[i+1] - t[i]) / 100 * (n+1)) - t[i];
-				p1.x = x_a_coefficient[i] + x_b_coefficient[i]*dt1 + x_c_coefficient[i]*dt1*dt1 + x_d_coefficient[i]*dt1*dt1*dt1;
-				p1.y = y_a_coefficient[i] + y_b_coefficient[i]*dt1 + y_c_coefficient[i]*dt1*dt1 + y_d_coefficient[i]*dt1*dt1*dt1;
-				p2.x = x_a_coefficient[i] + x_b_coefficient[i]*dt2 + x_c_coefficient[i]*dt2*dt2 + x_d_coefficient[i]*dt2*dt2*dt2;
-				p2.y = y_a_coefficient[i] + y_b_coefficient[i]*dt2 + y_c_coefficient[i]*dt2*dt2 + y_d_coefficient[i]*dt2*dt2*dt2;
-				// circle(tmp_img1, Point(p1.x, p1.y), 1, Scalar(255, 0, 0), -1);
-				if(isThroughObstacle(Point(p1.x, p1.y), Point(p2.x, p2.y), thickness)){
-					double sub;
-					sub = (t[i+1]-t[i]) * 0.1;
-					for(int j = i; j< fixed_path.size()-1; ++j){
-						
-						t[j+1] -= sub; 
-					}
-
-					cubic(t, x, &x_a_coefficient, &x_b_coefficient, &x_c_coefficient, &x_d_coefficient);
-					cubic(t, y, &y_a_coefficient, &y_b_coefficient, &y_c_coefficient, &y_d_coefficient);
-					change_count++;
-					tmp_flag = true;
-					path_danger = true;
-					break;
-				}
-				// line(tmp_img1, Point(p1.x, p1.y), Point(p2.x, p2.y), Scalar(0), thickness);
-			}
-			if(tmp_flag){
-				break;
-			}
-			path_danger = false;
-		}
-	}
-
-	tmp_img1 = getRGBMap();
-	for(int i = 0; i< x_a_coefficient.size(); ++i){
-		for(int n = 0; n< 100-1; ++n){
-			Point2f p1, p2;
-			double dt1 = (t[i] + (t[i+1] - t[i]) / 100 * n) - t[i];
-			double dt2 = (t[i] + (t[i+1] - t[i]) / 100 * (n+1)) - t[i];
-			p1.x = x_a_coefficient[i] + x_b_coefficient[i]*dt1 + x_c_coefficient[i]*dt1*dt1 + x_d_coefficient[i]*dt1*dt1*dt1;
-			p1.y = y_a_coefficient[i] + y_b_coefficient[i]*dt1 + y_c_coefficient[i]*dt1*dt1 + y_d_coefficient[i]*dt1*dt1*dt1;
-			p2.x = x_a_coefficient[i] + x_b_coefficient[i]*dt2 + x_c_coefficient[i]*dt2*dt2 + x_d_coefficient[i]*dt2*dt2*dt2;
-			p2.y = y_a_coefficient[i] + y_b_coefficient[i]*dt2 + y_c_coefficient[i]*dt2*dt2 + y_d_coefficient[i]*dt2*dt2*dt2;
-			// circle(tmp_img1, Point(p1.x, p1.y), 1, Scalar(255, 0, 0), -1);
-			line(tmp_img1, Point(p1.x, p1.y), Point(p2.x, p2.y), Scalar(255, 0, 0), 3);
-		}
-	}
-
-	for(int i = 0; i< fixed_path.size(); ++i){
-		circle(tmp_img1, Point(mix_vex_edge[fixed_path[i] - 1].x, mix_vex_edge[fixed_path[i] - 1].y), 4, Scalar(0, 0, 255), -1);
-		// cout << Point(mix_vex_edge[fixed_path[i] - 1].x, mix_vex_edge[fixed_path[i] - 1].y) << endl; 
-	}
-	myNameSpace::myImshow("test", tmp_img1);
-}
-*/
 Voronoi_vertex::Voronoi_vertex(){
 
 }

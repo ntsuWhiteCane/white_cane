@@ -7,6 +7,7 @@
 #ifndef PATH_H
 #define PATH_H
 
+#define PATH_PLANNING_FAIL -1
 class Voronoi_vertex{
 	public:
 		Voronoi_vertex();
@@ -48,12 +49,7 @@ class PathPlanning: public InitialMap{
 		void delaunay(cv::Mat &outputImage);
 		// return goal position number
 		int replan_astar(cv::Mat &outputImg, Voronoi_vertex *vex_edge, std::vector<int> &path_final_j_inv, std::vector<int> &cut_path_glob, std::vector<int> &fixed_path, cv::Point2f left_point, int is_on_path, cv::Point2f &next_pos);
-		/*
-		void cubic_spline(int thickness = 1);
-		void cubic(std::vector<double> x, std::vector<double> y,
-					std::vector<double> *a, std::vector<double> *b,
-					std::vector<double> *c, std::vector<double> *d);
-		*/
+
 	protected:	
 		cv::Rect rect;
 		cv::Subdiv2D subdiv;
@@ -61,6 +57,9 @@ class PathPlanning: public InitialMap{
 		
 	private:
 		bool isThroughObstacle(cv::Point a, cv::Point b, int thickness = 1);
+		// find the short cut of path
+		void _path_short_cut(std::vector<int> input_original_path, std::vector<int> *output_short_cut, Voronoi_vertex *vex_edge);
+		int _find_connect_point(cv::Point2f input_point, Voronoi_vertex *vex_edge, std::vector<int> num_vec, std::vector<float> points_distance);
 		Matrix getMinor(const Matrix& src, int row, int col);
 		double determinant(const Matrix &mat);
 		Matrix adjugate(const Matrix& mat);

@@ -17,14 +17,38 @@ mono_K = np.array([[6.786368808170881e+02, 0, 6.440856249983478e+02], [0, 6.7800
 inv_zed_K = np.linalg.inv(zed_K)
 inv_R = np.linalg.inv(R)
 
-mono_image_path = ".\\right_ud\\mono10.png"
-zed_image_path = ".\\left\\zed_left10.png"
-depth_path = ".\\depth\\depth10.npy"
+mono_image_path = ".\\right_ud\\mono35.png"
+zed_image_path = ".\\left\\zed_left35.png"
+depth_path = ".\\depth\\depth35.npy"
 
 zed_image = cv2.imread(zed_image_path, -1)
 mono_image = cv2.imread(mono_image_path, -1)
 depth = np.load(depth_path)
+
+# zed_image = zed_image.astype(np.int32) + 50
+# zed_image[zed_image[:, :, :] > 255] = 255
+# zed_image = zed_image.astype(np.uint8)
+
 # zed_image = cv2.convertScaleAbs(zed_image, alpha=1.4, beta=0)
+hsv_image1 = cv2.cvtColor(zed_image, cv2.COLOR_BGR2HSV)
+hsv_image2 = cv2.cvtColor(mono_image, cv2.COLOR_BGR2HSV)
+
+# Extract the V channel
+h1, s1, v1 = cv2.split(hsv_image1)
+h2, s2, v2 = cv2.split(hsv_image2)
+
+# Apply histogram equalization to the V channel
+equalized_v1 = cv2.equalizeHist(v1)
+equalized_v2 = cv2.equalizeHist(v2)
+
+# Merge the channels back
+equalized_hsv_image1 = cv2.merge([h1, s1, equalized_v1])
+equalized_hsv_image2 = cv2.merge([h2, s2, equalized_v2])
+
+# Convert back to BGR color space
+zed_image = cv2.cvtColor(equalized_hsv_image1, cv2.COLOR_HSV2BGR)
+mono_image = cv2.cvtColor(equalized_hsv_image2, cv2.COLOR_HSV2BGR)
+
 
 cv2.imshow("zed_image", zed_image)
 cv2.imshow("mono_image", mono_image)
@@ -33,7 +57,6 @@ cv2.destroyAllWindows()
 
 canvas = np.zeros(zed_image.shape, dtype=np.uint8)
 pos = 0
-count = 0
 
 print(f"shape of zed image: {zed_image.shape}")
 
@@ -42,7 +65,6 @@ mask = np.zeros((canvas.shape[0], canvas.shape[1]))
 # Modify the handling of the concept of unreasonable depth.
 x, y = np.meshgrid(np.arange(canvas.shape[1]), np.arange(canvas.shape[0]))
 print(f"x.shape: {x.shape}, y.shape: {y.shape}")
-print(f"x[0, 0]: {x[0, 0]}, y[0, 0]: {y[0, 0]}")
 
 pos = np.stack((x, y, np.ones_like(x)), axis=-1).astype(np.float32)
 
@@ -103,8 +125,6 @@ for i in range(3):
      pos_valid[:,i] = pos_valid[:,i]/pos_valid[:,2]
 print(f"3. pos_valid.shape: {pos_valid.shape}")
 
-print("**********************************")
-
 pos_valid = pos_valid.astype(int)
 
 '''
@@ -146,7 +166,6 @@ logical_array[origin_order] = True
 logical_array = logical_array.reshape(zed_image.shape[0], zed_image.shape[1])
 
 pos_valid = pos_valid.reshape(zed_image.shape[0], zed_image.shape[1], 3)
-print("**************************")
 print(f"4. pos_valid.shape: {pos_valid.shape}")
 
 x_indices = pos_valid[:,:,1].astype(int)
@@ -155,15 +174,14 @@ y_indices = pos_valid[:,:,0].astype(int)
 # get the mask of the points that are out of the range.
 mask = (x_indices >= 0) & (x_indices < canvas.shape[0]) & (y_indices >= 0) & (y_indices < canvas.shape[1])
 
-################################################  edge mask
+# the depth measurement at the edge of object is really bad so mask it.
 edgeimg = cv2.Canny(zed_image, 50, 200)
 dilate = cv2.dilate(edgeimg, kernel=np.ones((3,3)))
-cv2.imshow("edge",dilate)
-mask1 = dilate == 0
-mask = mask1 & mask
+edge_mask = dilate == 0
+mask = edge_mask & mask
 mask = mask & logical_array
 mask = mask & ~neg_depth_mask
-################################################
+
 # put the mask on image
 canvas[x_indices[mask], y_indices[mask]] = zed_image[mask].astype(np.uint8)
 point_projection_on_image = np.zeros((zed_image.shape[0], zed_image.shape[1])).astype(np.uint8)
@@ -186,57 +204,19 @@ cv2.imshow("mono", mono_image)
 cv2.imshow("point projection result", point_projection_on_image)
 cv2.waitKey(0)
 
-gray_image1 = cv2.cvtColor(canvas2, cv2.COLOR_BGR2GRAY)
-gray_image2 = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
-
-errorlist = []
-counttmp = []
-
-for i in range(0,720,80):
-     for j in range(0,1280,80):
-          sum = 0
-          count = 0
-          for k in range(80):
-               for l in range(80):
-                    if mask[i+k, j+l]:
-                         sum += diff[i+k, j+l]
-                         count += 1
-          if count != 0:
-               errorlist.append(sum/count)
-               counttmp.append(count)
-          else:
-               errorlist.append(0)
-               counttmp.append(0)
-
-errorlist = np.array(errorlist)
-errorlist = errorlist.reshape(9, 16)
-# print("errorlist: ", errorlist)
-counttmp = np.array(counttmp)
-counttmp = counttmp.reshape(9, 16)
-
-# sns.heatmap(errorlist, cmap='hot', annot=True, fmt=".2f")
-# plt.show()
-# sns.heatmap(counttmp, cmap='hot', annot=True)
-# plt.show()
+gray_image1 = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
+gray_image2 = cv2.cvtColor(canvas2, cv2.COLOR_BGR2GRAY)
 
 # compute MAE
-mae = np.sum(errorlist)/np.sum(counttmp)
 allerror = np.sum(diff[mask])
 psnr = cv2.PSNR(gray_image1, gray_image2)
-print("allerror: ", allerror)
+
 print("mean error: ", allerror/np.count_nonzero(mask))
 print("count: ", np.count_nonzero(mask))
 print("psnr: ", psnr, "db")
-cv2.destroyAllWindows()
-
-
-cv2.waitKey(0)
-cv2.destroyAllWindows()
 
 
 from skimage.metrics import structural_similarity as ssim
-
-
 
 score, diff = ssim(gray_image1, gray_image2, full=True, win_size=11)
 
@@ -245,7 +225,8 @@ print(f"SSIM: {score}")
 # display diff image 
 diff = (diff * 255).astype("uint8")
 cv2.imshow("Difference", diff)
+
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
-print(f"canvas.shape: {canvas.shape}, canvas2.shape: {canvas2.shape}")
+
